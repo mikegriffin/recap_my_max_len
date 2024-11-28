@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
 #   Copyright (C) 2017 Rackspace, Inc.
 #
@@ -32,7 +32,7 @@ declare -r _VERSION='2.1.0'
 declare -r DATE=$( date +%F_%T )
 declare -r LOCKFILE="/var/lock/recap.lock"
 declare -r LOG_SUFFIX=$( date +%Y%m%d-%H%M%S )
-declare -r LIBDIR="/usr/local/lib/recap"
+declare -r LIBDIR="/usr/lib/recap"
 declare -r COREDIR="${LIBDIR}/core"
 declare -r PLUGIN_A_DIR="${LIBDIR}/plugins-available"
 declare -r PLUGIN_E_DIR="${LIBDIR}/plugins-enabled"
@@ -91,10 +91,12 @@ USEMYSQL="${default_USEMYSQL}"
 # These depend on USEMYSQL to be enabled("yes")
 declare -r default_DOTMYDOTCNF="/root/.my.cnf"
 declare -r default_MYSQL_PROCESS_LIST="table"
+declare -r default_MYSQL_PROCESS_LIST_MAX_BYTES=0
 declare -r default_USEINNODB="no"
 declare -r default_USEMYSQLPROCESSLIST="no"
 DOTMYDOTCNF="${default_DOTMYDOTCNF}"
 MYSQL_PROCESS_LIST="${default_MYSQL_PROCESS_LIST}"
+MYSQL_PROCESS_LIST_MAX_BYTES="${default_MYSQL_PROCESS_LIST_MAX_BYTES}"
 USEINNODB="${default_USEINNODB}"
 USEMYSQLPROCESSLIST="${default_USEMYSQLPROCESSLIST}"
 
@@ -395,8 +397,13 @@ run_mysql_report() {
 
     # check to see if the optional mysql process list should be generated
     if [[ "${USEMYSQLPROCESSLIST,,}" == "yes" ]]; then
-      print_blankline "${ITEM_FILE}"
-      print_mysql_procs "${ITEM_FILE}" "${MYCNF}"
+      if [[ "${MYSQL_PROCESS_LIST_MAX_BYTES}" -gt 0 ]]; then
+            print_blankline "${ITEM_FILE}"
+            print_mysql_procs_max_bytes "${ITEM_FILE}" "${MYCNF}" "${MYSQL_PROCESS_LIST_MAX_BYTES}"
+      else
+            print_blankline "${ITEM_FILE}"
+            print_mysql_procs "${ITEM_FILE}" "${MYCNF}"
+      fi
     fi
     if [[ "${USEINNODB,,}" == "yes" ]]; then
       # send df -h output to output file
