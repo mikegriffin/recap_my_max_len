@@ -20,10 +20,10 @@
 
 # Print the output of "mysqladmin status" to the mysql file
 print_mysql() {
-  log INFO "Starting 'mysql status' report - ${LOGFILE##*/}"
   local LOGFILE="$1"
   local MYCNF="$2"
   local PLESK_FILE="/etc/psa/.psa.shadow"
+  log INFO "Starting 'mysql status' report - ${LOGFILE##*/}"
   if [[ -r "${PLESK_FILE}" ]]; then
     echo "MySQL (plesk) status" >> "${LOGFILE}"
     mysqladmin \
@@ -44,10 +44,10 @@ print_mysql() {
 
 # Print the non-truncated innodb status to the mysql file
 print_mysql_innodb_status() {
-  log INFO "Starting 'mysql innodb' report - ${LOGFILE##*/}"
   local LOGFILE="$1"
   local MYCNF="$2"
   local mysql_cmd=''
+  log INFO "Starting 'mysql innodb' report - ${LOGFILE##*/}"
 
   unset MYVALS PID_FILE TMPDIR
   if [[ -r "${PLESK_FILE}" ]]; then
@@ -91,10 +91,10 @@ print_mysql_innodb_status() {
 
 # Print the output of "mysqladmin processlist" to the mysql file
 print_mysql_procs() {
-  log INFO "Starting 'mysql processlist' report - ${LOGFILE##*/}"
   local LOGFILE="$1"
   local MYCNF="$2"
   local PLESK_FILE="/etc/psa/.psa.shadow"
+  log INFO "Starting 'mysql processlist' report - ${LOGFILE##*/}"
   if [[ -r "${PLESK_FILE}" ]]; then
     echo "MySQL (plesk) processes" >> "${LOGFILE}"
     if [[ ${MYSQL_PROCESS_LIST,,} == "table" ]]; then
@@ -127,6 +127,63 @@ print_mysql_procs() {
         --connect-timeout=5 \
         -e "show full processlist\G" \
         >> "${LOGFILE}"
+    fi
+  fi
+  print_blankline "${LOGFILE}"
+  log INFO "Ended 'mysql processlist' report"
+}
+
+# Pipe the output of "mysqladmin processlist" through head and append to the mysql file
+print_mysql_procs_max_bytes() {
+  local LOGFILE="$1"
+  local MYCNF="$2"
+  local MYSQL_PROCESS_LIST_MAX_BYTES="$3"
+  local PLESK_FILE="/etc/psa/.psa.shadow"
+  log INFO "Starting 'mysql processlist' report with max bytes ${MYSQL_PROCESS_LIST_MAX_BYTES} - ${LOGFILE##*/}"
+  if [[ -r "${PLESK_FILE}" ]]; then
+    echo "MySQL (plesk) processes" >> "${LOGFILE}"
+    if [[ ${MYSQL_PROCESS_LIST,,} == "table" ]]; then
+      mysqladmin \
+        -uadmin \
+        -p$( cat "${PLESK_FILE}" ) \
+        -v processlist \
+        --connect-timeout=5 \
+	  | stdbuf -oL head -c ${MYSQL_PROCESS_LIST_MAX_BYTES} \
+        >> "${LOGFILE}"
+      print_blankline "${LOGFILE}"
+      echo "-- WARNING POTENTIALLY TRUCATED PROCESSLIST OUTPUT" >> "${LOGFILE}"
+    fi
+    if [[ ${MYSQL_PROCESS_LIST,,} == "vertical" ]]; then
+      mysql \
+        -uadmin \
+        -p$( cat "${PLESK_FILE}" ) \
+        --connect-timeout=5 \
+        -e "show full processlist\G" \
+	  | stdbuf -oL head -c ${MYSQL_PROCESS_LIST_MAX_BYTES} \
+        >> "${LOGFILE}"
+      print_blankline "${LOGFILE}"
+      echo "-- WARNING POTENTIALLY TRUCATED PROCESSLIST OUTPUT" >> "${LOGFILE}"
+    fi
+  else
+    echo "MySQL (${MYCNF}) processes" >> "${LOGFILE}"
+    if [[ ${MYSQL_PROCESS_LIST} == "table" ]]; then
+      mysqladmin \
+        --defaults-file="${MYCNF}" \
+        -v processlist \
+        --connect-timeout=5 \
+	  | stdbuf -oL head -c ${MYSQL_PROCESS_LIST_MAX_BYTES} \
+        >> "${LOGFILE}"
+      print_blankline "${LOGFILE}"
+      echo "-- WARNING POTENTIALLY TRUCATED PROCESSLIST OUTPUT" >> "${LOGFILE}"
+    elif [[ ${MYSQL_PROCESS_LIST,,} == "vertical" ]]; then
+      mysql \
+        --defaults-file="${MYCNF}" \
+        --connect-timeout=5 \
+        -e "show full processlist\G" \
+	  | stdbuf -oL head -c ${MYSQL_PROCESS_LIST_MAX_BYTES} \
+        >> "${LOGFILE}"
+      print_blankline "${LOGFILE}"
+      echo "-- WARNING POTENTIALLY TRUCATED PROCESSLIST OUTPUT" >> "${LOGFILE}"
     fi
   fi
   print_blankline "${LOGFILE}"
